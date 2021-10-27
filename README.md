@@ -11,8 +11,11 @@
 2. 把该repo中的model_infer.cpp替代原来model_infer动态库代码中的model_infer.cpp，同时把model_infer.h/thread_pool.h/logger.h都拷贝到model_deploy/common/include文件夹中
 ![files_position](https://user-images.githubusercontent.com/24242483/139017800-78736d89-f2cc-452b-9d99-82361fa8be6e.png)
 
-4. 在model_infer动态库代码项目中右键/属性/C/C++/常规/附件包含目录，添加PaddleX-release-2.0.0\deploy\cpp文件夹，从而保证整个model_deploy文件夹都能被model_infer项目找到，确保可以成功生成model_infer.dll
+3. 在model_infer动态库代码项目中右键/属性/C/C++/常规/附件包含目录，添加PaddleX-release-2.0.0\deploy\cpp文件夹，从而保证整个model_deploy文件夹都能被model_infer项目找到，确保可以成功生成model_infer.dll
 ![add_head_folder](https://user-images.githubusercontent.com/24242483/139017936-44a5399f-c203-4842-9a58-4ff4ffcbfd7f.png)
+
+4. 使用该repo的c#代码验证多线程访问模型
+![result](https://user-images.githubusercontent.com/24242483/139020183-f0b997c1-c293-4de9-bb72-e3ca8b9185ef.png)
 
 注意：
 - paddle的模型不支持多线程并行推理，虽然通过改造后，模型可以被多线程访问，但本质上底层是被线程池锁掉了，每次实际上只有单线程访问模型。如果强行让多线程并行访问模型，必然导致推理报错。
