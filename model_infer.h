@@ -1,7 +1,7 @@
 #pragma once
-#include "model_deploy/common/include/paddle_deploy.h"
-#include "model_deploy/common/include/logger.h" // [suliang] LOGC
-#include "model_deploy/common/include/thread_pool.h"
+#include "paddle_deploy.h"
+#include "logger.h" // [suliang] LOGC
+#include "thread_pool.h"
 
 // 多线程默认推理api：基于原生model_infer.cpp修改了形参和返回值，把model作为结果返回
 extern "C" __declspec(dllexport) PaddleDeploy::Model * InitModel(const char* model_type, const char* model_filename, const char* params_filename, const char* cfg_file, bool use_gpu, int gpu_id, char* paddlex_model_type);
