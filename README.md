@@ -1,5 +1,6 @@
 # model_infer_multiThreads
 
+(最近更新：2021-10-28 增加了原生的所有api接口，支持clas/det/seg/mask)
 该repo基于PaddleX模型推理动态链接库的接口代码进行修改，支持多线程并行访问。大部分代码均来自paddleX的model_infer.cpp
 修改部分：
 - 把模型作为对象从初始化函数返回，便于进行多线程控制
