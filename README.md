@@ -15,6 +15,8 @@
 ![add_head_folder](https://user-images.githubusercontent.com/24242483/139017936-44a5399f-c203-4842-9a58-4ff4ffcbfd7f.png)
 
 4. 使用该repo的c#代码验证多线程访问模型
+- 模型/配置文件的名称被在代码里边固定了，如果不匹配会报错，如果需要自定义就自己改代码吧
+- 默认只能在gpu下跑，cpu被在代码里边关掉了，如果需要就自己改代码吧
 ![result](https://user-images.githubusercontent.com/24242483/139020183-f0b997c1-c293-4de9-bb72-e3ca8b9185ef.png)
 
 注意：
