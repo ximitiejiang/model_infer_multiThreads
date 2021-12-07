@@ -63,7 +63,9 @@ void TestSingleModelMultiThreads()
     cv::Mat dst2 = cv::Mat(height, width, CV_8UC1, result_map2);
     cv::imwrite("D:\\result_map1.bmp", dst1);
     cv::imwrite("D:\\result_map2.bmp", dst2);
-
+    
+    ModelObjDestruct(model);
+    ModelObjDestruct(model2);
     free(result_map1);
     free(result_map2);
 }
