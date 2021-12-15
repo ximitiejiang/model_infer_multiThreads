@@ -82,7 +82,9 @@ extern "C" __declspec(dllexport) PaddleDeploy::Model * InitModel(const char* mod
 }
 
 // 初始化模型带tensorRT加速
-extern "C" __declspec(dllexport) PaddleDeploy::Model * InitModel_TRT(const char* model_type, const char* model_filename, const char* params_filename, const char* cfg_file, bool use_gpu, int gpu_id, char* paddlex_model_type)
+// [suliang] 2021-12-15 增加5个输入参数：min_input_shape, max_input_shape, optim_input_shape分别代表输入尺寸的输入范围， precision代表计算精度(0=fp32,1=fp16,2=int8),min_subgraph_size代表最小优化子图
+extern "C" __declspec(dllexport) PaddleDeploy::Model * InitModel_TRT(const char* model_type, const char* model_filename, const char* params_filename, const char* cfg_file, bool use_gpu, int gpu_id, char* paddlex_model_type,
+	std::vector<int>min_input_shape, std::vector<int>max_input_shape, std::vector<int>optim_input_shape, int precision, int min_subgraph_size)
 {
 	// create model
 	PaddleDeploy::Model* model = PaddleDeploy::CreateModel(model_type);  //FLAGS_model_type
@@ -101,37 +103,36 @@ extern "C" __declspec(dllexport) PaddleDeploy::Model * InitModel_TRT(const char*
 	engine_config.use_gpu = true;
 	engine_config.use_trt = true;
 
-	// 针对tensorRT需要做子图优化
-	engine_config.precision = 0;			// 精度选择，默认fp32,还有fp16,int8
-	engine_config.min_subgraph_size = 40;	// 最小子图，越大则优化度越低，越大越可能忽略动态图
+	// 注意：根据优化目标需要手动调整
+	engine_config.precision = precision;				// 精度选择，默认fp32,还有fp16,int8
+	engine_config.min_subgraph_size = min_subgraph_size;// 最小子图，越大则优化度越低，越大越可能忽略动态图: 设置40+不报错但也没啥优化
 	engine_config.max_workspace_size = 1 << 30;
 
-	// 增加min,max,optim尺寸定义
-	engine_config.min_input_shape["x"] = { 1, 3, 512, 512 };
-	engine_config.max_input_shape["x"] = { 1, 3, 1024, 1024 };
-	engine_config.optim_input_shape["x"] = { 1, 3, 1024, 1024 };
+	// 注意：根据模型和输入图像大小，需要手动调整如下变量
+	//std::vector<int> min_input_shape = { 1, 3, 512, 512 };
+	//std::vector<int> max_input_shape = { 1, 3, 1024, 1024 };
+	//std::vector<int> optim_input_shape = { 1, 3, 1024, 1024 };
 
 	// 分别定义最小、最大、最优输入尺寸：需要根据模型输入尺寸调整
-	// 这里三种模型输入的关键字不同，可通过netron查看INPUTS.name，比如seg模型INPUTS.name=x
+	// 这里三种模型输入的关键字不同(clas对应inputs, det对应image, seg对应x)，可通过netron查看INPUTS.name，比如seg模型INPUTS.name=x
 	// 另外如果有动态输入尺寸不匹配的节点，需要手动定义
 	if (strcmp("clas", model_type) == 0) {
 		// Adjust shape according to the actual model
-		engine_config.min_input_shape["inputs"] = { 1, 3, 224, 224 };
-		engine_config.max_input_shape["inputs"] = { 1, 3, 224, 224 };
-		engine_config.optim_input_shape["inputs"] = { 1, 3, 224, 224 };
+		engine_config.min_input_shape["inputs"] = min_input_shape;
+		engine_config.max_input_shape["inputs"] = max_input_shape;
+		engine_config.optim_input_shape["inputs"] = optim_input_shape;
 	}
 	else if (strcmp("det", model_type) == 0) {
 		// Adjust shape according to the actual model
-		engine_config.min_input_shape["image"] = { 1, 3, 608, 608 };
-		engine_config.max_input_shape["image"] = { 1, 3, 608, 608 };
-		engine_config.optim_input_shape["image"] = { 1, 3, 608, 608 };
+		engine_config.min_input_shape["image"] = min_input_shape;
+		engine_config.max_input_shape["image"] = max_input_shape;
+		engine_config.optim_input_shape["image"] = optim_input_shape;
 	}
 	else if (strcmp("seg", model_type) == 0) {
 		// Additional nodes need to be added, pay attention to the output prompt
-		engine_config.min_input_shape["x"] = { 1, 3, 512, 512 };
-		engine_config.max_input_shape["x"] = { 1, 3, 1024, 1024 };
-		engine_config.optim_input_shape["x"] = { 1, 3, 1024, 1024 };
-
+		engine_config.min_input_shape["x"] = min_input_shape;
+		engine_config.max_input_shape["x"] = max_input_shape;
+		engine_config.optim_input_shape["x"] = optim_input_shape;
 	}
 	bool init = model->PaddleEngineInit(engine_config);
 	if (!init)
@@ -464,7 +465,8 @@ extern "C" __declspec(dllexport) void DestructModel(PaddleDeploy::Model * model)
 
 
 // 新增二次封装：初始化
-void ModelWrapper::InitModelEnter(const char* model_type, const char* model_dir, int gpu_id, bool use_trt)
+void ModelWrapper::InitModelEnter(const char* model_type, const char* model_dir, int gpu_id, bool use_trt,
+	const std::vector<int>min_input_shape, const std::vector<int>max_input_shape, const std::vector<int>optim_input_shape, int precision, int min_subgraph_size)
 {
 	// 初始化线程池：创建指定个数线程，每个线程指定到线程池的一个线程号
 	pool = new ThreadPool(num_threads);
@@ -493,7 +495,8 @@ void ModelWrapper::InitModelEnter(const char* model_type, const char* model_dir,
 			cfg_file.c_str(),          // *.yaml 
 			use_gpu,
 			gpu_id,
-			paddle_model_type);
+			paddle_model_type,
+			min_input_shape, max_input_shape, optim_input_shape, precision, min_subgraph_size);
 	}
 }
 
@@ -587,10 +590,11 @@ void ModelWrapper::DestructModelEnter()
 
 
 // 新增二次封装接口api
-extern "C" __declspec(dllexport) ModelWrapper * ModelObjInit(const char* model_type, const char* model_dir, int gpu_id, bool use_trt)
+extern "C" __declspec(dllexport) ModelWrapper * ModelObjInit(const char* model_type, const char* model_dir, int gpu_id, bool use_trt,
+	const std::vector<int>min_input_shape, const std::vector<int>max_input_shape, const std::vector<int>optim_input_shape, int precision, int min_subgraph_size)
 {
 	ModelWrapper* modelObj = new ModelWrapper();
-	modelObj->InitModelEnter(model_type, model_dir, gpu_id, use_trt);
+	modelObj->InitModelEnter(model_type, model_dir, gpu_id, use_trt, min_input_shape, max_input_shape, optim_input_shape, precision, min_subgraph_size);
 	return modelObj;
 }
 
