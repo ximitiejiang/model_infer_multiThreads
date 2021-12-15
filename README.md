@@ -2,6 +2,7 @@
 
 该repo基于PaddleX模型推理动态链接库的接口代码进行修改，支持多线程并行访问。大部分代码均来自paddleX的model_infer.cpp
 #### 最近更新：
+- 2021-12-15 增加激活tensorRT接口的参数设置
 - 2021-11-24 增加demo_cs, demo_cpp工程
 - 2021-10-28 增加了原生的所有api接口，支持clas/det/seg/mask)
 
